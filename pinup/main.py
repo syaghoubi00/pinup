@@ -1,26 +1,43 @@
-"""Pinup - Container Pinned Version Updater.
-
-Reads Containerfiles and updates the pinned versions within them.
-"""
+"""PinUp - Update Pinned Package Versions in Containerfiles."""
 
 import logging
+import os
+import shutil
+from pathlib import Path
 
-from pinup.utils import Container
+import docker
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
-def main() -> None:
-    """Run the main application logic."""
-    container = Container()
+def get_container_runtime_socket() -> str | None:
+    """Return the path to the container runtime socket."""
+    for runtime in ("docker", "podman"):
+        if path := shutil.which(runtime):
+            logger.info("Found container runtime: %s", path)
 
-    if not container.runtime.is_available:
-        logger.error("No container runtime found.")
-        return
+            uid = os.getuid()
 
-    logger.info(container.runtime.path)
+            if "docker" in path:
+                # Try rootless user socket first
+                if Path(f"/run/user/{uid}/docker.sock").exists():
+                    return f"unix://run/user/{uid}/docker.sock"
+                # Try rootful socket next
+                if Path("/var/run/docker.sock").exists():
+                    return "unix://var/run/docker.sock"
+            if "podman" in path:
+                if Path(f"/run/user/{uid}/podman/podman.sock").exists():
+                    return f"unix://run/user/{uid}/podman/podman.sock"
+                if Path("/var/run/podman/podman.sock").exists():
+                    return "unix://var/run/podman/podman.sock"
+
+    msg = "No container runtime socket found"
+    raise FileNotFoundError(msg)
 
 
 if __name__ == "__main__":
-    main()
+    socket = get_container_runtime_socket()
+    logger.info("Using container runtime socket: %s", socket)
+
+    client = docker.DockerClient(base_url=socket)
