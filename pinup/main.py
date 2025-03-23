@@ -1,5 +1,6 @@
 """PinUp - Update Pinned Package Versions in Containerfiles."""
 
+import argparse
 import logging
 import os
 import shutil
@@ -8,7 +9,6 @@ from pathlib import Path
 import docker
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 def get_container_runtime_socket() -> str | None:
@@ -36,8 +36,43 @@ def get_container_runtime_socket() -> str | None:
     raise FileNotFoundError(msg)
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Update package versions in container files.",
+    )
+
+    parser.add_argument(
+        "-f",
+        "--file",
+        type=Path,
+        default="Containerfile",
+        help="Path to the container file.",
+    )
+    parser.add_argument(
+        "--socket",
+        type=Path,
+        help="Path to the container runtime socket.",
+    )
+    parser.add_argument(
+        "--verbosity",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+        default="WARNING",
+        help="Set logging level.",
+    )
+
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    socket = get_container_runtime_socket()
+    args = parse_args()
+
+    # Set logging level
+    log_level = getattr(logging, args.verbosity)
+    logging.basicConfig(level=log_level)
+
+    # If socket is not provided, try to find one
+    socket = get_container_runtime_socket() if not args.socket else args.socket
     logger.info("Using container runtime socket: %s", socket)
 
     client = docker.DockerClient(base_url=socket)
