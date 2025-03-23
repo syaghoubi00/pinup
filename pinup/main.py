@@ -173,7 +173,7 @@ def get_package_manager(base_image: str) -> PackageManager:
     if any(distro in image_lower for distro in ["fedora", "centos", "rhel"]):
         return PackageManager(
             package_manager="dnf",
-            check_update_command="check-update",
+            check_update_command="dnf repoquery --quiet --latest-limit=1 --queryformat='%{name}=%{version}\n'",
         )
     if any(distro in image_lower for distro in ["ubuntu", "debian"]):
         return PackageManager(package_manager="apt-get", check_update_command="update")
@@ -237,11 +237,12 @@ def get_new_package_versions(
     if pkg_manager.package_manager == "dnf":
         # pattern = r"([a-zA-Z0-9_-]+)-[\d.:]+(?=-*\d*\s|$)"
         pattern = r"([a-zA-Z0-9_-]+)=\S+"
-        out_pattern = r"([a-zA-Z0-9_-]+)-0:([\d\.]+)"
+        # out_pattern = r"([a-zA-Z0-9_-]+)-0:([\d\.]+)"
 
+        # Matches package names
         packages = {match.group(1) for match in re.finditer(pattern, stage_content)}
 
-        command = f"dnf -q repoquery {' '.join(packages)}"
+        command = f"{pkg_manager.check_update_command} {' '.join(packages)}"
 
     if not packages:
         logger.info("No pinned packages found in stage %d", stage.index)
@@ -270,13 +271,11 @@ def get_new_package_versions(
 
             logger.info("Result:\n%s", result)
 
-        except client.errors.ContainerError:
+        except docker.errors.APIError:
             logger.exception("Error checking for updates: %s")
+            raise
 
-    new_package_versions = {
-        f"{match.group(1)}-{match.group(2)}"
-        for match in re.finditer(out_pattern, result)
-    }
+    new_package_versions = result.strip().split("\n")
 
     logger.info(
         "New package versions in stage %d: %s",
