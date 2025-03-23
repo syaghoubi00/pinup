@@ -10,7 +10,8 @@ from pathlib import Path
 
 import docker
 
-from pinup.utils import parsers
+from pinup.utils.parsers.containerfiles import ContainerfileParser
+from pinup.utils.parsers.args import parse_args
 
 logger = logging.getLogger(__name__)
 
@@ -38,34 +39,6 @@ def get_container_runtime_socket() -> str | None:
 
     msg = "No container runtime socket found"
     raise FileNotFoundError(msg)
-
-
-def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Update package versions in container files.",
-    )
-
-    parser.add_argument(
-        "-f",
-        "--file",
-        type=Path,
-        default="Containerfile",
-        help="Path to the container file.",
-    )
-    parser.add_argument(
-        "--socket",
-        type=Path,
-        help="Path to the container runtime socket.",
-    )
-    parser.add_argument(
-        "--verbosity",
-        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
-        default="WARNING",
-        help="Set logging level.",
-    )
-
-    return parser.parse_args()
 
 
 @dataclass
@@ -110,7 +83,6 @@ def get_new_package_versions(
     command = ""
 
     # NOTE: This is a placeholder implementation for DNF package manager
-    out_pattern = ""
     result = ""
 
     if pkg_manager.package_manager == "dnf":
@@ -180,7 +152,7 @@ if __name__ == "__main__":
     # Parse the container file into stages
     try:
         # Initialize Parser object with the containerfile
-        parse = parsers.ContainerfileParser(containerfile_path=args.file)
+        parse = ContainerfileParser(containerfile_path=args.file)
 
         stages = parse.containerfile()
         logger.info("Found %d build stages", len(stages))
