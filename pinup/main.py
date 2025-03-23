@@ -159,15 +159,29 @@ def parse_containerfile(containerfile: Path) -> list[BuildStage]:
     return stages
 
 
-def get_package_manager(base_image: str) -> str:
+@dataclass
+class PackageManager:
+    """Represents a package manager for a specific base image."""
+
+    package_manager: str  # Package manager for this base image
+    check_update_command: str  # Command to check for package updates
+
+
+def get_package_manager(base_image: str) -> PackageManager:
     """Determine the package manager based on the base image."""
     image_lower = base_image.lower()
     if any(distro in image_lower for distro in ["fedora", "centos", "rhel"]):
-        return "dnf"
+        return PackageManager(
+            package_manager="dnf",
+            check_update_command="check-update",
+        )
     if any(distro in image_lower for distro in ["ubuntu", "debian"]):
-        return "apt"
+        return PackageManager(package_manager="apt-get", check_update_command="update")
     if "alpine" in image_lower:
-        return "apk"
+        return PackageManager(package_manager="apk", check_update_command="update")
+
+    msg = f"Unknown base image type: {base_image}, cannot determine package manager"
+    raise RuntimeError(msg)
 
 
 def parse_stage(
@@ -242,9 +256,11 @@ if __name__ == "__main__":
                 containerfile=args.file,
             )
 
+            logger.info("Stage content:\n%s", pasrsed_stage)
+
             # Determine package manager for this stage
             pkg_manager = get_package_manager(stage.base_image)
-            logger.info("Stage uses package manager: %s", pkg_manager)
+            logger.info("Stage uses package manager: %s", pkg_manager.package_manager)
 
     except FileNotFoundError:
         logger.exception("Container file not found: %s", args.file)
