@@ -3,9 +3,10 @@
 import argparse
 import logging
 import os
+import re
 import shutil
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 import docker
 
@@ -168,6 +169,39 @@ def get_package_manager(base_image: str) -> str:
     if "alpine" in image_lower:
         return "apk"
 
+
+def parse_stage(
+    stage: BuildStage,
+    all_stages: list[BuildStage],
+    containerfile: Path,
+) -> str:
+    """Parse the container stage content from the containerfile."""
+    # Determine the end line for the current stage
+    current_index = stage.index
+    end_line = None
+
+    # Find the next stage's start line to use as our end boundary
+    for other_stage in all_stages:
+        if other_stage.index == current_index + 1:
+            end_line = other_stage.start_line - 1
+            break
+
+    # Read the containerfile content
+    with containerfile.open() as f:
+        all_lines = f.readlines()
+
+    # Extract only the portion for the current stage
+    if end_line:
+        stage_content = "".join(all_lines[stage.start_line - 1 : end_line])
+    else:
+        # If this is the last stage, read until the end of file
+        stage_content = "".join(all_lines[stage.start_line - 1 :])
+
+    return stage_content
+
+
+
+
     logger.warning(
         "Unknown base image type: %s, cannot determine package manager",
         base_image,
@@ -186,6 +220,9 @@ if __name__ == "__main__":
     socket = get_container_runtime_socket() if not args.socket else args.socket
     logger.info("Using container runtime socket: %s", socket)
 
+    # Initialize Docker client only once
+    client = docker.DockerClient(base_url=socket)
+
     # Parse the container file into stages
     try:
         stages = parse_containerfile(args.file)
@@ -199,6 +236,12 @@ if __name__ == "__main__":
                 stage.base_image,
             )
 
+            pasrsed_stage = parse_stage(
+                stage,
+                all_stages=stages,
+                containerfile=args.file,
+            )
+
             # Determine package manager for this stage
             pkg_manager = get_package_manager(stage.base_image)
             logger.info("Stage uses package manager: %s", pkg_manager)
@@ -206,8 +249,6 @@ if __name__ == "__main__":
     except FileNotFoundError:
         logger.exception("Container file not found: %s", args.file)
         raise
-    except Exception as e:
-        logger.exception("Error parsing container file: %s", e)
+    except Exception:
+        logger.exception("Error parsing container file: %s")
         raise
-
-    client = docker.DockerClient(base_url=socket)
