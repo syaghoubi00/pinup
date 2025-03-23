@@ -214,13 +214,75 @@ def parse_stage(
     return stage_content
 
 
+def get_new_package_versions(
+    stage_content: str,
+    pkg_manager: PackageManager,
+    client: docker.DockerClient,
+) -> None:
+    """Update package versions in a container stage.
 
+    Args:
+        stage_content: Content of the container stage
+        pkg_manager: PackageManager object for this stage
+        client: Docker client object
 
-    logger.warning(
-        "Unknown base image type: %s, cannot determine package manager",
-        base_image,
+    """
+    packages = []
+    command = ""
+
+    # NOTE: This is a placeholder implementation for DNF package manager
+    out_pattern = ""
+    result = ""
+
+    if pkg_manager.package_manager == "dnf":
+        # pattern = r"([a-zA-Z0-9_-]+)-[\d.:]+(?=-*\d*\s|$)"
+        pattern = r"([a-zA-Z0-9_-]+)=\S+"
+        out_pattern = r"([a-zA-Z0-9_-]+)-0:([\d\.]+)"
+
+        packages = {match.group(1) for match in re.finditer(pattern, stage_content)}
+
+        command = f"dnf -q repoquery {' '.join(packages)}"
+
+    if not packages:
+        logger.info("No pinned packages found in stage %d", stage.index)
+        return
+
+    logger.info("Pinned packages in stage %d: %s", stage.index, packages)
+
+    if command:
+        try:
+            # TODO: Create temp dir to store package manager cache and pass as volume
+            container = client.containers.run(
+                image=stage.base_image,
+                command=command,
+                detach=True,
+            )
+
+            # TODO: Add timeout handling
+            # Wait for the container to finish
+            container.wait()
+
+            # Get the output from the container
+            result = container.logs().decode("utf-8").strip()
+
+            # Clean up the container
+            container.remove()
+
+            logger.info("Result:\n%s", result)
+
+        except client.errors.ContainerError:
+            logger.exception("Error checking for updates: %s")
+
+    new_package_versions = {
+        f"{match.group(1)}-{match.group(2)}"
+        for match in re.finditer(out_pattern, result)
+    }
+
+    logger.info(
+        "New package versions in stage %d: %s",
+        stage.index,
+        new_package_versions,
     )
-    return "unknown"
 
 
 if __name__ == "__main__":
@@ -261,6 +323,13 @@ if __name__ == "__main__":
             # Determine package manager for this stage
             pkg_manager = get_package_manager(stage.base_image)
             logger.info("Stage uses package manager: %s", pkg_manager.package_manager)
+
+            # Process this stage
+            get_new_package_versions(
+                stage_content=pasrsed_stage,
+                pkg_manager=pkg_manager,
+                client=client,
+            )
 
     except FileNotFoundError:
         logger.exception("Container file not found: %s", args.file)
