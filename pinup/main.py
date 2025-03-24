@@ -2,23 +2,15 @@
 
 import logging
 import re
-from dataclasses import dataclass
 
 import docker
 
+from pinup.models import PackageManager
 from pinup.utils.get_socket import get_container_runtime_socket
 from pinup.utils.parsers.args import parse_args
 from pinup.utils.parsers.containerfiles import ContainerfileParser
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class PackageManager:
-    """Represents a package manager for a specific base image."""
-
-    package_manager: str  # Package manager for this base image
-    check_update_command: str  # Command to check for package updates
 
 
 def get_package_manager(base_image: str) -> PackageManager:
