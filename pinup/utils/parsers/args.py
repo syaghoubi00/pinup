@@ -1,3 +1,5 @@
+"""Arguement Parser for the PinUp Package."""
+
 import argparse
 from pathlib import Path
 
@@ -9,9 +11,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "-f",
-        "--file",
+        "file",
         type=Path,
+        nargs="?",
         default="Containerfile",
         help="Path to the container file.",
     )
