@@ -36,7 +36,6 @@ def get_new_package_versions(
     if pkg_manager.package_manager == "dnf":
         # pattern = r"([a-zA-Z0-9_-]+)-[\d.:]+(?=-*\d*\s|$)"
         pattern = r"([a-zA-Z0-9_-]+)=\S+"
-        # out_pattern = r"([a-zA-Z0-9_-]+)-0:([\d\.]+)"
 
         # Matches package names
         packages = {match.group(1) for match in re.finditer(pattern, stage_content)}
