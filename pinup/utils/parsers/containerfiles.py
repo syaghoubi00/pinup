@@ -9,6 +9,12 @@ class ContainerfileParser:
     """Parser for Containerfiles/Dockerfiles."""
 
     def __init__(self, containerfile_path: Path) -> None:
+        """Initialize the parser with a containerfile.
+
+        Args:
+            containerfile_path: Path to the Containerfile/Dockerfile
+
+        """
         self.containerfile_path = containerfile_path
         self.containerfile_content = self.containerfile_path.read_text()
 
