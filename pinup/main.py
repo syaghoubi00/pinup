@@ -10,6 +10,7 @@ from pinup.utils.get_socket import get_container_runtime_socket
 from pinup.utils.parsers.args import parse_args
 from pinup.utils.parsers.containerfiles import ContainerfileParser
 from pinup.utils.parsers.package_manager import get_package_manager
+from pinup.utils.update_containerfile import update_containerfile
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def get_new_package_versions(
     stage_content: str,
     pkg_manager: PackageManager,
     client: docker.DockerClient,
-) -> None:
+) -> tuple[str, list[str]] | None:
     """Update package versions in a container stage.
 
     Args:
@@ -28,6 +29,7 @@ def get_new_package_versions(
 
     """
     packages = []
+    pattern = ""
     command = ""
 
     # NOTE: This is a placeholder implementation for DNF package manager
@@ -44,7 +46,7 @@ def get_new_package_versions(
 
     if not packages:
         logger.info("No pinned packages found in stage %d", stage.index)
-        return
+        return None
 
     logger.info("Pinned packages in stage %d: %s", stage.index, packages)
 
@@ -80,6 +82,9 @@ def get_new_package_versions(
         stage.index,
         new_package_versions,
     )
+
+    # TODO: Return some kind of object with package name and version
+    return pattern, new_package_versions
 
 
 if __name__ == "__main__":
@@ -124,11 +129,25 @@ if __name__ == "__main__":
             logger.info("Stage uses package manager: %s", pkg_manager.package_manager)
 
             # Process this stage
-            get_new_package_versions(
+            new_packages = get_new_package_versions(
                 stage_content=parsed_stage,
                 pkg_manager=pkg_manager,
                 client=client,
             )
+
+            if not new_packages:
+                break
+            else:
+                new_content = update_containerfile(
+                    pattern=new_packages[0],
+                    packages=new_packages[1],
+                    content=parsed_stage,
+                )
+            if new_content:
+                file_content = args.file.read_text()
+                updated_content = file_content.replace(parsed_stage, new_content)
+                args.file.write_text(updated_content)
+                logger.info("Updated containerfile %s:\n%s", args.file, new_content)
 
     except FileNotFoundError:
         logger.exception("Container file not found: %s", args.file)
