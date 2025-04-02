@@ -1,5 +1,10 @@
+"""Update the containerfile with new package versions."""
+
+import difflib
 import logging
 import re
+import sys
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -36,3 +41,27 @@ def update_containerfile(
     logger.info("Updated content:\n%s", updated_content)
 
     return updated_content
+
+
+def containerfile_diff(
+    content: str,
+    updated_content: str,
+    file_path: Path,
+) -> None:
+    """Generate a diff between the old and new Containerfile."""
+    if updated_content != content:
+        diff = "\n".join(
+            difflib.unified_diff(
+                content.splitlines(),
+                updated_content.splitlines(),
+                fromfile=f"{file_path} (old)",
+                tofile=f"{file_path} (new)",
+            ),
+        )
+        logger.info("\n%s", diff)
+        response = input(f"Update {file_path}? (y/N): ").strip().lower()
+        if response != "y":
+            logger.info("Skipping update for %s", file_path)
+            return
+        file_path.write_text(updated_content)
+        logger.info("Updated %s: ", file_path)

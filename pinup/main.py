@@ -10,7 +10,7 @@ from pinup.utils.get_socket import get_container_runtime_socket
 from pinup.utils.parsers.args import parse_args
 from pinup.utils.parsers.containerfiles import ContainerfileParser
 from pinup.utils.parsers.package_manager import get_package_manager
-from pinup.utils.update_containerfile import update_containerfile
+from pinup.utils.update_containerfile import containerfile_diff, update_containerfile
 
 logger = logging.getLogger(__name__)
 
@@ -144,10 +144,17 @@ if __name__ == "__main__":
                     content=parsed_stage,
                 )
             if new_content:
-                file_content = args.file.read_text()
-                updated_content = file_content.replace(parsed_stage, new_content)
-                args.file.write_text(updated_content)
-                logger.info("Updated containerfile %s:\n%s", args.file, new_content)
+                if not args.no_prompt:
+                    containerfile_diff(
+                        content=parsed_stage,
+                        updated_content=new_content,
+                        file_path=args.file,
+                    )
+                else:
+                    file_content = args.file.read_text()
+                    updated_content = file_content.replace(parsed_stage, new_content)
+                    args.file.write_text(updated_content)
+                    logger.info("Updated containerfile %s:\n%s", args.file, new_content)
 
     except FileNotFoundError:
         logger.exception("Container file not found: %s", args.file)

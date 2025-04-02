@@ -28,5 +28,11 @@ def parse_args() -> argparse.Namespace:
         default="WARNING",
         help="Set logging level.",
     )
+    parser.add_argument(
+        "--no-prompt",
+        "-y",
+        action="store_true",
+        help="Skip prompting for confirmation before writing changes",
+    )
 
     return parser.parse_args()
