@@ -1,18 +1,16 @@
-[tool.poetry]
+[project]
 name = "pinup"
 version = "0.1.0"
-description = ""
-authors = ["Sebastian Yaghoubi <sebastianyaghoubi@gmail.com>"]
-readme = "README.md"
+description = "Keep pinned package versions in your Containerfiles (Dockerfiles) up-to-date"
+authors = [
+  { name = "Sebastian Yaghoubi", email = "sebastianyaghoubi@gmail.com" },
+]
+requires-python = ">=3.13"
+dependencies = ["docker>=7.1.0"]
 
-[tool.poetry.dependencies]
-python = "^3.13"
-docker = "^7.1.0"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
-ruff = "^0.11.2"
+[dependency-groups]
+dev = ["pytest>=8.3.5"]
+lint = ["ruff>=0.11.2"]
 
 [tool.ruff]
 target-version = "py313"
@@ -20,7 +18,3 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = []
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
