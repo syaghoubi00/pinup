@@ -30,12 +30,14 @@ def update_containerfile(
         package_name = match.group(1)
 
         for pkg in packages:
-            if pkg.startswith(f"{package_name}="):
+            if pkg.startswith(f"{package_name}"):
                 new_version = pkg.split("=")[1]
                 old_version = match.group(0)
                 updated_content = updated_content.replace(
                     old_version,
-                    f"{package_name}={new_version}",
+                    # NOTE: Different distros may require different version strings
+                    # tested and working on Fedora, 'package-version'
+                    f"{package_name}-{new_version}",
                 )
                 logger.info("updating %s to %s", package_name, new_version)
     logger.info("Updated content:\n%s", updated_content)
